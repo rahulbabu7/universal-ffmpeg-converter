@@ -1,19 +1,19 @@
 _pycache__/
-   *.py[cod]
-   *$py.class
-   *.so
-   .Python
-   venv/
-   env/
-   ENV/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
 
-   # PyInstaller
-   build/
-   dist/
-   *.spec
+# PyInstaller
+build
+dist
+*.spec
 
-   # IDE
-   .vscode/
-   .idea/
-   *.swp
-   *.swo
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
