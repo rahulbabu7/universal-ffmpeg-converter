@@ -17,71 +17,76 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: FFmpeg-Converter
-            asset_name: FFmpeg-Converter-Linux
+            artifact_name: FFmpeg-Converter-Linux
+            zip_name: FFmpeg-Converter-Linux.zip
           - os: windows-latest
-            artifact_name: FFmpeg-Converter.exe
-            asset_name: FFmpeg-Converter-Windows.exe
+            artifact_name: FFmpeg-Converter-Windows
+            zip_name: FFmpeg-Converter-Windows.zip
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install PyQt6 pyinstaller
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyQt6 pyinstaller
 
-    - name: Build with PyInstaller
-      run: |
-        pyinstaller --onefile --windowed --name="FFmpeg-Converter" convert.py
+      # zip utility is sometimes missing on ubuntu-latest
+      - name: Install zip (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y zip
 
-    - name: Compress executable (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        cd dist
-        zip FFmpeg-Converter-Linux.zip FFmpeg-Converter
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --name="FFmpeg-Converter" convert.py
 
-    - name: Compress executable (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cd dist
-        powershell Compress-Archive -Path FFmpeg-Converter.exe -DestinationPath FFmpeg-Converter-Windows.zip
+      - name: Compress executable (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd dist
+          zip "${{ matrix.zip_name }}" FFmpeg-Converter
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.asset_name }}
-        path: dist/*.zip
+      - name: Compress executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd dist
+          powershell -Command "Compress-Archive -Path FFmpeg-Converter.exe -DestinationPath ${{ matrix.zip_name }} -Force"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.zip_name }}
+          if-no-files-found: error
 
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+    permissions:
+      contents: write
     steps:
-    - name: Download Linux artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: FFmpeg-Converter-Linux
-        path: ./linux
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FFmpeg-Converter-Linux
+          path: ./linux
 
-    - name: Download Windows artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: FFmpeg-Converter-Windows.exe
-        path: ./windows
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FFmpeg-Converter-Windows
+          path: ./windows
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ./linux/FFmpeg-Converter
-          ./windows/FFmpeg-Converter.exe
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./linux/FFmpeg-Converter-Linux.zip
+            ./windows/FFmpeg-Converter-Windows.zip
