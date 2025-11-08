@@ -39,7 +39,7 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --windowed --name="FFmpeg-Converter" ffmpeg_converter.py
+        pyinstaller --onefile --windowed --name="FFmpeg-Converter" convert.py
 
     - name: Compress executable (Linux)
       if: matrix.os == 'ubuntu-latest'
