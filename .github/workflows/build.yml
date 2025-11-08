@@ -39,13 +39,25 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --windowed --name="FFmpeg-Converter" convert.py
+        pyinstaller --onefile --windowed --name="FFmpeg-Converter" ffmpeg_converter.py
+
+    - name: Compress executable (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        cd dist
+        zip FFmpeg-Converter-Linux.zip FFmpeg-Converter
+
+    - name: Compress executable (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd dist
+        powershell Compress-Archive -Path FFmpeg-Converter.exe -DestinationPath FFmpeg-Converter-Windows.zip
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
-        path: dist/${{ matrix.artifact_name }}
+        path: dist/*.zip
 
   release:
     needs: build
