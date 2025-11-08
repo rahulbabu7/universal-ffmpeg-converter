@@ -64,7 +64,7 @@ Visit [FFmpeg official website](https://ffmpeg.org/download.html)
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/universal-ffmpeg-converter.git
+   git clone https://github.com/rahulbabu7/universal-ffmpeg-converter.git
    cd universal-ffmpeg-converter
    ```
 
