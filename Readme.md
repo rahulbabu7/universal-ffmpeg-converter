@@ -3,7 +3,7 @@
 A simple, modern Qt GUI application for converting media files using FFmpeg. Built with Python and PyQt6.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
 
 ## Features
