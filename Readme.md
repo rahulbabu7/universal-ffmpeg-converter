@@ -204,7 +204,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Author
 
-Your Name - [@rahulbabu](https://github.com/rahulbabu7)
+Name - [@rahulbabu](https://github.com/rahulbabu7)
 
 Project Link: [https://github.com/yourusername/universal-ffmpeg-converter](https://github.com/rahulbabu7/universal-ffmpeg-converter)
 
