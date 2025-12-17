@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+
 """
 Universal FFmpeg Converter - Qt GUI
 A simple, modern interface for converting media files
 """
-
+import shutil
 import sys
 import os
 import subprocess
@@ -350,18 +350,19 @@ class FFmpegConverter(QMainWindow):
 
 
 def main():
-    # Check for ffmpeg
-    try:
-        subprocess.run(['ffmpeg', '-version'],
-                      stdout=subprocess.PIPE,
-                      stderr=subprocess.PIPE,
-                      check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print("ERROR: ffmpeg not found. Please install ffmpeg first.")
+    ffmpeg_path = shutil.which("ffmpeg")
+
+    if not ffmpeg_path:
+        QMessageBox.critical(
+            None,
+            "FFmpeg not found",
+            "FFmpeg was not found in PATH.\n\n"
+            "Please ensure ffmpeg is installed and accessible."
+        )
         sys.exit(1)
 
     app = QApplication(sys.argv)
-    app.setStyle('Fusion')  # Modern look
+    app.setStyle('Fusion')
 
     window = FFmpegConverter()
     window.show()

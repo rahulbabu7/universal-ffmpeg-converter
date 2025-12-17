@@ -1,4 +1,4 @@
-name: Build FFmpeg Converter
+name: Build Multi-Platform
 
 on:
   push:
@@ -9,19 +9,14 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Global permissions
+permissions:
+  contents: write
+  packages: write
+
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            artifact_name: FFmpeg-Converter-Linux
-            zip_name: FFmpeg-Converter-Linux.zip
-          - os: windows-latest
-            artifact_name: FFmpeg-Converter-Windows
-            zip_name: FFmpeg-Converter-Windows.zip
+  build-windows:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -32,61 +27,125 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install PyQt6 pyinstaller
+          pip install pyinstaller PyQt6 certifi
 
-      # zip utility is sometimes missing on ubuntu-latest
-      - name: Install zip (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y zip
-
-      - name: Build with PyInstaller
+      - name: Build Windows executable
         run: |
-          pyinstaller --onefile --windowed --name="FFmpeg-Converter" convert.py
+          pyinstaller --onefile --windowed --name "FFmpeg-Converter" convert.py
 
-      - name: Compress executable (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Test Windows executable
         run: |
-          cd dist
-          zip "${{ matrix.zip_name }}" FFmpeg-Converter
+          if (Test-Path "dist/FFmpeg-Converter.exe") {
+            Write-Host "✓ Windows EXE created successfully"
+          } else {
+            Write-Error "❌ Build failed - EXE not found"
+            exit 1
+          }
 
-      - name: Compress executable (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cd dist
-          powershell -Command "Compress-Archive -Path FFmpeg-Converter.exe -DestinationPath ${{ matrix.zip_name }} -Force"
-
-      - name: Upload artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.zip_name }}
-          if-no-files-found: error
+          name: FFmpeg-Converter-Windows
+          path: dist/FFmpeg-Converter.exe
+          retention-days: 30
 
-  release:
-    needs: build
+  build-linux:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
+
     steps:
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxcb-xinerama0 \
+            libxcb-cursor0 \
+            libxkbcommon-x11-0
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 certifi
+
+      - name: Build Linux binary
+        run: |
+          pyinstaller --onefile --windowed --name "FFmpeg-Converter" convert.py
+
+      - name: Test Linux binary
+        run: |
+          if [ -f "dist/FFmpeg-Converter" ]; then
+            echo "✓ Linux binary created successfully"
+          else
+            echo "❌ Build failed"
+            exit 1
+          fi
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
         with:
           name: FFmpeg-Converter-Linux
-          path: ./linux
+          path: dist/FFmpeg-Converter
+          retention-days: 30
 
-      - name: Download Windows artifact
+  create-release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
-        with:
-          name: FFmpeg-Converter-Windows
-          path: ./windows
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
-            ./linux/FFmpeg-Converter-Linux.zip
-            ./windows/FFmpeg-Converter-Windows.zip
+            FFmpeg-Converter-Windows/FFmpeg-Converter.exe
+            FFmpeg-Converter-Linux/FFmpeg-Converter
+          body: |
+            ## FFmpeg Converter Release
+
+            ### Downloads
+            - **Windows**: FFmpeg-Converter.exe
+            - **Linux**: FFmpeg-Converter
+
+            ### Requirements
+            **FFmpeg must be installed separately**
+
+            - **Windows**  
+              - Download from https://ffmpeg.org/download.html  
+              - Or install via:
+                ```
+                winget install ffmpeg
+                ```
+
+            - **Linux**
+              - Ubuntu / Debian:
+                ```
+                sudo apt install ffmpeg
+                ```
+              - Fedora:
+                ```
+                sudo dnf install ffmpeg
+                ```
+
+            ### Notes
+            - Built with PyInstaller
+            - GUI uses PyQt6
+            - Hardware acceleration is automatically used by FFmpeg when available
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
