@@ -2,14 +2,13 @@ name: Build Multi-Platform
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
-# Global permissions
 permissions:
   contents: write
   packages: write
@@ -19,13 +18,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Python dependencies
         run: |
@@ -36,33 +33,32 @@ jobs:
         run: |
           pyinstaller --onefile --windowed --name "FFmpeg-Converter" convert.py
 
-      - name: Test Windows executable
+      - name: Zip Windows executable
         run: |
-          if (Test-Path "dist/FFmpeg-Converter.exe") {
-            Write-Host "✓ Windows EXE created successfully"
-          } else {
-            Write-Error "❌ Build failed - EXE not found"
-            exit 1
-          }
+          cd dist
+          powershell -Command "Compress-Archive FFmpeg-Converter.exe FFmpeg-Converter-Windows.zip -Force"
 
-      - name: Upload Windows artifact
+      - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
         with:
-          name: FFmpeg-Converter-Windows
+          name: FFmpeg-Converter-Windows-extracted
           path: dist/FFmpeg-Converter.exe
-          retention-days: 30
+
+      - name: Upload Windows ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FFmpeg-Converter-Windows-zip
+          path: dist/FFmpeg-Converter-Windows.zip
 
   build-linux:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install system dependencies
         run: |
@@ -70,7 +66,8 @@ jobs:
           sudo apt-get install -y \
             libxcb-xinerama0 \
             libxcb-cursor0 \
-            libxkbcommon-x11-0
+            libxkbcommon-x11-0 \
+            zip
 
       - name: Install Python dependencies
         run: |
@@ -81,21 +78,22 @@ jobs:
         run: |
           pyinstaller --onefile --windowed --name "FFmpeg-Converter" convert.py
 
-      - name: Test Linux binary
+      - name: Zip Linux binary
         run: |
-          if [ -f "dist/FFmpeg-Converter" ]; then
-            echo "✓ Linux binary created successfully"
-          else
-            echo "❌ Build failed"
-            exit 1
-          fi
+          cd dist
+          zip FFmpeg-Converter-Linux.zip FFmpeg-Converter
 
-      - name: Upload Linux artifact
+      - name: Upload Linux binary
         uses: actions/upload-artifact@v4
         with:
-          name: FFmpeg-Converter-Linux
+          name: FFmpeg-Converter-Linux-extracted
           path: dist/FFmpeg-Converter
-          retention-days: 30
+
+      - name: Upload Linux ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: FFmpeg-Converter-Linux-zip
+          path: dist/FFmpeg-Converter-Linux.zip
 
   create-release:
     needs: [build-windows, build-linux]
@@ -113,39 +111,37 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            FFmpeg-Converter-Windows/FFmpeg-Converter.exe
-            FFmpeg-Converter-Linux/FFmpeg-Converter
+            FFmpeg-Converter-Windows-extracted/FFmpeg-Converter.exe
+            FFmpeg-Converter-Windows-zip/FFmpeg-Converter-Windows.zip
+            FFmpeg-Converter-Linux-extracted/FFmpeg-Converter
+            FFmpeg-Converter-Linux-zip/FFmpeg-Converter-Linux.zip
           body: |
             ## FFmpeg Converter Release
 
             ### Downloads
-            - **Windows**: FFmpeg-Converter.exe
-            - **Linux**: FFmpeg-Converter
+            **Windows**
+            - FFmpeg-Converter.exe (portable)
+            - FFmpeg-Converter-Windows.zip
+
+            **Linux**
+            - FFmpeg-Converter (portable)
+            - FFmpeg-Converter-Linux.zip
 
             ### Requirements
             **FFmpeg must be installed separately**
 
-            - **Windows**  
-              - Download from https://ffmpeg.org/download.html  
-              - Or install via:
-                ```
-                winget install ffmpeg
-                ```
-
-            - **Linux**
-              - Ubuntu / Debian:
-                ```
-                sudo apt install ffmpeg
-                ```
-              - Fedora:
-                ```
-                sudo dnf install ffmpeg
-                ```
-
-            ### Notes
-            - Built with PyInstaller
-            - GUI uses PyQt6
-            - Hardware acceleration is automatically used by FFmpeg when available
+            - Windows:
+              ```
+              winget install ffmpeg
+              ```
+            - Linux (Ubuntu/Debian):
+              ```
+              sudo apt install ffmpeg
+              ```
+            - Linux (Fedora):
+              ```
+              sudo dnf install ffmpeg
+              ```
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
